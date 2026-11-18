@@ -45,6 +45,11 @@ mauberesec lab register demo-web   # create + register a local lab
 mauberesec lab verify demo-web     # network/health/hardening verification
 mauberesec lab reset demo-web      # teardown + fresh create
 mauberesec lab teardown demo-web   # remove only this lab's resources
+
+# Passive scan: live targets require explicit authorization
+mauberesec scan https://example.com --auth-reference CONTRACT-1 --authorized-by owner
+# Registered lab targets need no authorization (classification is verified)
+mauberesec scan http://10.66.7.10/
 ```
 
 ## Docker

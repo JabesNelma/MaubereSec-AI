@@ -38,8 +38,10 @@ config_app = typer.Typer(help="Show resolved configuration.")
 app.add_typer(models_app, name="models")
 app.add_typer(config_app, name="config")
 from .lab import lab_app  # noqa: E402 - avoids circular import at module top
+from .scan import scan as scan_command  # noqa: E402 - avoids circular import at module top
 
 app.add_typer(lab_app, name="lab")
+app.command(name="scan")(scan_command)
 
 log = get_logger("mauberesec.cli")
 

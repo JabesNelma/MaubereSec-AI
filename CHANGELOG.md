@@ -49,3 +49,18 @@ Milestone: Docker isolation and local lab manager.
 - CLI commands: lab list/register/verify/teardown/reset.
 - demo-web training template (nginx:1.27-alpine).
 - 23 new tests including live-Docker integration tests.
+
+## 0.4.0 (2026-11-19)
+
+Milestone: passive live website assessment.
+
+- URL normalization (http/https only; no credentials, query, fragment).
+- Live destination validation rejecting private/loopback/link-local/multicast/
+  reserved/unspecified addresses and cloud metadata endpoints (fail closed);
+  lab destinations must resolve inside registered lab subnets.
+- Passive HTTP checker: GET-only, cookie/credential-free, manual redirect
+  following with per-hop revalidation, security-header and cookie-attribute
+  checks, conservative budgets (requests, rate, timeout, response size,
+  redirects).
+- CLI `mauberesec scan` with live authorization flags bound to the scope hash.
+- 34 new tests (unit/integration/security).

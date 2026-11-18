@@ -169,7 +169,7 @@ class ToolRunRecord(BaseModel):
 
 class FindingRecord(BaseModel):
     id: str = Field(default_factory=lambda: new_id("fnd"))
-    assessment_id: str
+    assessment_id: str = ""  # bound to an assessment when persisted
     title: str = Field(min_length=1)
     severity: Severity = Severity.INFO
     confidence: Confidence = Confidence.LOW
