@@ -1,0 +1,31 @@
+# Development compose for the MaubereSec AI CLI runtime (v0.1).
+# Security baseline:
+#   - non-root user (set in Dockerfile)
+#   - read-only root filesystem, writable /tmp only
+#   - no capabilities beyond defaults (all dropped)
+#   - no docker socket mount, no host network, no privileged mode
+#   - CPU/memory/PID limits
+services:
+  cli:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: mauberesec/cli:0.1.0
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    environment:
+      MSAI_PROVIDER: ${MSAI_PROVIDER:-}
+      MSAI_MODEL: ${MSAI_MODEL:-}
+      # API keys are passed at runtime only, never baked into the image.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
