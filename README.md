@@ -74,6 +74,12 @@ cp config/mcp.example.json ~/.config/mauberesec/mcp.json   # then edit
 mauberesec mcp list                                        # read-only discovery
 mauberesec mcp call <server> <tool> --args '{"text":"hi"}'  # trusted servers only
 
+# Reports and history (redacted; JSON validates against the shipped schema)
+mauberesec history
+mauberesec assessment show <assessment-id>
+mauberesec report generate <assessment-id> --out ./reports
+mauberesec report schema
+
 # Bounded agent: plan only, or plan + execute (deterministic by default)
 mauberesec agent plan ./my-project --goal "find hardcoded secrets"
 mauberesec agent run ./my-project --goal "find hardcoded secrets" --max-steps 10

@@ -37,15 +37,28 @@ models_app = typer.Typer(help="Inspect and test configured cloud models.")
 config_app = typer.Typer(help="Show resolved configuration.")
 app.add_typer(models_app, name="models")
 app.add_typer(config_app, name="config")
-from .agent import agent_app  # noqa: E402 - avoids circular import at module top
-from .apk import apk_app  # noqa: E402 - avoids circular import at module top
-from .audit import audit as audit_command  # noqa: E402 - avoids circular import at module top
-from .lab import lab_app  # noqa: E402 - avoids circular import at module top
-from .mcp import mcp_app  # noqa: E402 - avoids circular import at module top
-from .scan import scan as scan_command  # noqa: E402 - avoids circular import at module top
+from .agent import agent_app
+from .apk import apk_app
+from .audit import audit as audit_command
+from .lab import lab_app
+from .mcp import mcp_app
+from .reports import (
+    generate as generate_command,
+    history as history_command,
+    report_app,
+    show as show_command,
+)
+from .scan import scan as scan_command
 
 app.add_typer(agent_app, name="agent")
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(report_app, name="report")
+app.command(name="history")(history_command)
+
+assessment_app = typer.Typer(help="Inspect and manage assessments.")
+app.add_typer(assessment_app, name="assessment")
+assessment_app.command(name="show")(show_command)
+assessment_app.command(name="report")(generate_command)
 app.add_typer(apk_app, name="apk")
 app.add_typer(lab_app, name="lab")
 app.command(name="scan")(scan_command)

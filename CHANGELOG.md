@@ -164,3 +164,20 @@ Milestone: MCP integrations.
 - Timeouts and per-server output caps with truncation markers.
 - Local fixture MCP server for tests and a documented example config.
 - 18 new tests (233 passed, 1 skipped).
+
+## 0.11.0 (2026-11-19)
+
+Milestone: findings verification and reports.
+
+- Versioned finding schema (1.0) with independent severity/confidence,
+  explicit source (tool/llm/human), structured evidence, and remediation.
+- Verification engine: LLM-only claims can never be confirmed; confirmation
+  needs reproducible tool/human evidence; refutation needs deterministic
+  evidence; non-reproduction recorded explicitly.
+- Evidence correlation across tools with volatile-identifier stripping,
+  conservative severity/confidence merging, and no over-merging.
+- Markdown + JSON reports with scope/mode/authorization/tools/limitations/
+  untested areas, partial-run labelling, missing-remediation flags, full
+  redaction, and a shipped JSON Schema (validated in tests).
+- CLI report generate|show|schema, history, assessment show.
+- 19 new tests (252 passed, 1 skipped).

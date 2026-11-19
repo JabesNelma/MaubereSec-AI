@@ -28,6 +28,7 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
   "respx>=0.21",
+  "jsonschema>=4.22",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -40,6 +41,11 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "S", "RUF"]
 ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+# Late imports are deliberate in the CLI entrypoint: subcommand modules import
+# the app, so importing them at module top would create a cycle.
+"mauberesec/cli/app.py" = ["E402", "I001"]
 
 [tool.mypy]
 python_version = "3.11"
