@@ -149,3 +149,18 @@ Milestone: APK dynamic analysis in an isolated emulator (experimental).
   remove_container, image_exists) with allowlist updates.
 - CLI `mauberesec apk dynamic` (experimental, --dry-run supported).
 - 16 new tests (215 passed, 1 skipped) incl. stub-image orchestration tests.
+
+## 0.10.0 (2026-11-19)
+
+Milestone: MCP integrations.
+
+- Official MCP Python SDK adopted (2.3.0) behind a bounded client wrapper.
+- Explicit-only configuration (mcp.json); absent config means no servers and
+  nothing is contacted; servers untrusted by default.
+- Read-only discovery with server identity/version auditing; schema
+  normalization into internal contracts with shell/exec-like tools rejected.
+- Policy gateway check on every invocation; untrusted servers discovery-only;
+  denials and calls audited; injection markers in output detected.
+- Timeouts and per-server output caps with truncation markers.
+- Local fixture MCP server for tests and a documented example config.
+- 18 new tests (233 passed, 1 skipped).

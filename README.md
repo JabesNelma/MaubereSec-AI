@@ -69,6 +69,11 @@ mauberesec apk analyze ./application.apk --metadata-only
 mauberesec apk dynamic ./application.apk --dry-run
 mauberesec apk dynamic ./application.apk --package com.example.app
 
+# MCP integrations (explicit config only; nothing auto-connects)
+cp config/mcp.example.json ~/.config/mauberesec/mcp.json   # then edit
+mauberesec mcp list                                        # read-only discovery
+mauberesec mcp call <server> <tool> --args '{"text":"hi"}'  # trusted servers only
+
 # Bounded agent: plan only, or plan + execute (deterministic by default)
 mauberesec agent plan ./my-project --goal "find hardcoded secrets"
 mauberesec agent run ./my-project --goal "find hardcoded secrets" --max-steps 10

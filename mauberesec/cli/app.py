@@ -41,9 +41,11 @@ from .agent import agent_app  # noqa: E402 - avoids circular import at module to
 from .apk import apk_app  # noqa: E402 - avoids circular import at module top
 from .audit import audit as audit_command  # noqa: E402 - avoids circular import at module top
 from .lab import lab_app  # noqa: E402 - avoids circular import at module top
+from .mcp import mcp_app  # noqa: E402 - avoids circular import at module top
 from .scan import scan as scan_command  # noqa: E402 - avoids circular import at module top
 
 app.add_typer(agent_app, name="agent")
+app.add_typer(mcp_app, name="mcp")
 app.add_typer(apk_app, name="apk")
 app.add_typer(lab_app, name="lab")
 app.command(name="scan")(scan_command)

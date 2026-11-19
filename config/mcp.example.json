@@ -1,0 +1,13 @@
+{
+  "_comment": "Explicit MCP servers only. Nothing is contacted until you run an MCP command. trusted=false keeps a server discovery-only.",
+  "servers": [
+    {
+      "name": "example-fixture",
+      "command": "python3",
+      "args": ["-m", "mauberesec.mcp.fixture_server"],
+      "trusted": false,
+      "read_only": true,
+      "timeout_seconds": 20
+    }
+  ]
+}

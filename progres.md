@@ -1,80 +1,71 @@
 # MaubereSec AI Progress
 
 ## Current milestone
-v0.9 — APK dynamic analysis in an isolated emulator (experimental)
+v0.10 — MCP integrations
 
 ## Status
-Implemented and tested (orchestration verified end-to-end; host capability detection verified both ways) — awaiting owner validation and approval of v0.10
+Implemented and tested (official SDK 2.3.0; live fixture-server runs) — awaiting owner validation and approval of v0.11
 
 ## Completed
 
-### v0.1–v0.8 (approved & released)
+### v0.1–v0.9 (approved & released)
 - CLI/cloud foundation, policy/database foundation, Docker lab manager, passive
   live website assessment, source-code audit, APK static analysis, bounded
-  agent, controlled local-lab red-team validation.
+  agent, lab red-team validation, APK dynamic analysis (experimental).
 
-### v0.9 (this milestone)
-- [x] Host capability detection (`android/hostcheck.py`): /dev/kvm presence and
-      access, CPU virtualization flags (vmx/svm), docker availability. An
-      unsupported host is refused with an actionable explanation (exit 3) —
-      isolation is never silently degraded. `doctor` now reports an
-      `android-emulator` line.
-- [x] Synthetic fixtures only (`android/fixtures.py`): fixed synthetic account
-      (`.invalid` email) and dataset files with a marker; unit tests assert no
-      realistic secret patterns exist anywhere in the fixtures.
-- [x] Fixed container entry script (`android/container/emulator_entry.sh`):
-      waits for boot, pushes the synthetic dataset, installs the APK,
-      launches it, captures logcat/process/package observations, and emits one
-      JSON line. All adb calls target the container's own emulator — the
-      host's adb is never used, so a personal device cannot be targeted.
-- [x] Emulator orchestration (`android/emulator.py`): per-run **internal**
-      Docker network (egress stays inside the boundary), detached emulator
-      container with `--device /dev/kvm`, fixed `docker exec` of the entry
-      script, teardown of container + network, and **verified reset** (each run
-      uses a brand-new container and the runner asserts the identity differs
-      from the previous run). Image-level snapshots (docker commit) are
-      deliberately not used, keeping the Docker allowlist minimal.
-- [x] Narrow Docker API additions (`docker/client.py`): the only path allowed to
-      pass `--device /dev/kvm` (run_emulator_container), `exec_in` restricted to
-      a permitted argv[0] set, `remove_container`, `image_exists`, and
-      `("exec",)`/`("image","inspect")` in the allowlist. Generic `run` still
-      rejects host mounts, privileged mode, and host networking.
-- [x] CLI `mauberesec apk dynamic <apk> [--package] [--image] [--logcat-seconds]
-      [--dry-run]`, marked EXPERIMENTAL; dry-run prints the plan without
-      executing; package can be auto-derived from the static analyzer.
-- [x] Clearly marked experimental; the roadmap's platform caveat is implemented
-      as an explicit capability gate rather than an assumption.
+### v0.10 (this milestone)
+- [x] Official MCP client SDK adopted (`mcp` 2.3.0, verified importable and
+      working on this Python 3.14 host; API probed before implementation).
+- [x] Explicit configuration only (`mcp/config.py`): servers are listed in
+      `mcp.json`; an absent file means **no servers** and nothing is contacted.
+      `trusted=false` by default; `read_only` required for exposure.
+- [x] Read-only discovery (`mcp/bridge.py::discover`): initialize + tools/list
+      only, with server identity/protocol version recorded and audited.
+- [x] Schema normalization (`mcp/normalize.py`): MCP tools become internal
+      `mcp.<server>.<tool>` contracts; shell/exec/bash/sudo-like names or
+      descriptions are rejected outright; write-capable servers refused;
+      per-server allowlists honored; contracts are read-only and never
+      lab-only.
+- [x] Policy gateway on every invocation: calls run
+      `PolicyGateway.check_tool_call`; unknown/undiscovered tools are denied;
+      untrusted servers are discovery-only (denials audited).
+- [x] Timeouts and output caps (`mcp/client.py`): asyncio deadline per
+      operation and per-server byte caps with explicit truncation markers.
+- [x] Untrusted content handling: outputs are framed as data by the CLI and
+      injection markers are detected and audited.
+- [x] Local fixture MCP server (`mcp/fixture_server.py`) with an intentional
+      injection attempt, plus CLI `mauberesec mcp list|call`, and a documented
+      `config/mcp.example.json`.
 
 ## In progress
 - None.
 
 ## Automated tests
-- Total: 215 passed, 1 skipped (+16 this milestone).
-- Unit: capability detection (missing KVM, missing virtualization flags),
-  refusal message content, fixture synthetic-only assertions, CLI refusal
-  (exit 3) and dry-run, package requirement, docker client allowlist/exec
-  restrictions, emulator API validation errors.
-- Integration (real Docker, stub emulator image): full orchestration
-  end-to-end — internal network created, detached container, fixed exec of the
-  entry script, synthetic push, install, launch, logcat capture, teardown, and
-  verified reset across two runs (distinct container ids). A real-emulator
-  opt-in test runs when MSAI_EMULATOR_IMAGE is set.
-- mypy strict (62 files) and ruff clean.
+- Total: 233 passed, 1 skipped (+18 this milestone).
+- Unit/security: config validation (absent = no servers, malformed rejected),
+  shell-like tool rejection (names and descriptions), write-server refusal,
+  allowlists, sanitized contract naming, untrusted discovery-only behaviour,
+  unconfigured server never contacted, injection markers audited, every call
+  audited, unknown tool denied by policy, output truncation, timeout errors,
+  example config disabled by default.
+- Live runs: discovery and invocation against the local fixture server via the
+  official SDK (initialize/list/call, untrusted refusal, trusted call).
+- mypy strict (69 files) and ruff clean.
 
-## Manual tests (Linux, this host — has KVM)
-- `doctor` reports `android-emulator: supported (KVM available, docker present)`.
-- `apk dynamic <apk> --dry-run` prints the plan (package auto-detected as
-  com.example.vuln from the static analyzer) and executes nothing.
-- Simulated unsupported host: exit code 3 with an explanation and a pointer to
-  `mauberesec apk analyze`.
+## Manual tests (Linux, this host)
+- `mcp list` with two configured fixture servers: discovery showed
+  `msai-fixture v0.10.0 (protocol 2024-11-05)` and three tools.
+- `mcp call fixture ...` (untrusted) → refused with an explicit explanation.
+- `mcp call fixture-trusted echo` → returned `echo: hi`, output labelled
+  untrusted.
 
 ## Known issues
-- A real emulator image (`budtmo/docker-android:emulator_11.0`, multi-GB) is not
-  downloaded in CI; the opt-in test `MSAI_EMULATOR_IMAGE` covers it when
-  available. Orchestration correctness is verified against a stub image.
-- Dynamic analysis remains EXPERIMENTAL pending platform matrix evidence
-  (roadmap requirement), and no findings are auto-generated from logcat — the
-  capture is evidence for human review in this milestone.
+- Only read-only MCP integrations are exposed in this milestone (roadmap:
+  "add approved scanner MCP integrations selectively"); write-capable servers
+  are refused by design.
+- MCP servers run as local subprocesses under the user's account (inherent to
+  stdio MCP); mitigation is explicit configuration, untrusted-by-default
+  trust, policy gating, timeouts, and output caps.
 
 ## Next permitted work
-Only tasks in v0.10 — MCP integrations (after owner approval).
+Only tasks in v0.11 — Findings verification and reports (after owner approval).
