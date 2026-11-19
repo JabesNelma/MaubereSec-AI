@@ -45,6 +45,11 @@ python_version = "3.11"
 strict = true
 files = ["mauberesec"]
 
+[[tool.mypy.overrides]]
+module = "mauberesec.tools.apk.container.apk_analyzer"
+# The container-fallback import of the sibling axml module is intentional.
+disable_error_code = ["import-not-found"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

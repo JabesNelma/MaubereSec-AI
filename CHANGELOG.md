@@ -81,3 +81,19 @@ Milestone: local source-code audit.
 - CLI `mauberesec audit` with --inventory-only; findings deduplicated and
   persisted with tool-run and audit-event records.
 - 23 new tests (142 total) incl. live-Docker isolation tests.
+
+## 0.6.0 (2026-11-19)
+
+Milestone: APK static analysis.
+
+- Host-side APK validation (size cap, ZIP magic, symlink rejection, SHA-256).
+- Pure-python AXML parser for AndroidManifest.xml and network security configs.
+- Containerized analyzer (python:3.12-alpine, network none, read-only mounts):
+  dangerous permissions, exported components, debuggable, cleartext config,
+  allowBackup, targetSdk review; embedded secret indicators with values
+  withheld; ZIP-bomb protections (entry/size/ratio limits).
+- The APK is never installed or executed; analysis is data-only inside a
+  restricted container; staged through a controlled input location.
+- CLI `mauberesec apk analyze` (+ --metadata-only); policy gateway supports
+  APK targets; run_scanner supports extra validated read-only mounts.
+- 20 new tests (162 total) incl. live-Docker analyzer tests.

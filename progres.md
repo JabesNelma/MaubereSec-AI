@@ -1,71 +1,73 @@
 # MaubereSec AI Progress
 
 ## Current milestone
-v0.5 — Local source-code audit
+v0.6 — APK static analysis
 
 ## Status
-Implemented and tested (incl. real scanner runs in containers) — awaiting owner validation and approval of v0.6
+Implemented and tested (incl. real container analysis of a crafted APK) — awaiting owner validation and approval of v0.7
 
 ## Completed
 
-### v0.1–v0.4 (approved & released)
-- CLI foundation + cloud model, policy/database foundation, Docker lab manager,
-  passive live website assessment.
+### v0.1–v0.5 (approved & released)
+- CLI/cloud foundation, policy/database foundation, Docker lab manager,
+  passive live website assessment, local source-code audit.
 
-### v0.5 (this milestone)
-- [x] Path safety (`mauberesec/scope/pathcheck.py`): canonicalization, symlinked
-      root rejection, per-entry symlink escape detection (escapes skipped + reported).
-- [x] File inventory (`tools/source_audit/inventory.py`): generated/binary/oversized
-      exclusions, secret-hint files tracked and excluded from any cloud context,
-      max_files/max_total_bytes/max_file_bytes limits.
-- [x] Container scanner execution (`DockerClient.run_scanner`): strictly read-only
-      source mount (validated; general `docker run` still rejects host mounts),
-      `--network none` default (opt-in bridge only for rule/advisory downloads),
-      cap_drop ALL, no-new-privileges, read-only rootfs, tmpfs, fixed entrypoint/env.
-      `label=disable` (container-only) needed on SELinux hosts; user files never relabeled.
-- [x] Adapters (`tools/source_audit/adapters.py`): Semgrep (semgrep/semgrep:1.86.0),
-      Gitleaks (zricethezav/gitleaks:v8.24.3), OSV-Scanner (ghcr.io/google/osv-scanner:v1.9.2);
-      fixed commands only; pre-pull to keep stdout clean; JSON parsers; secret values
-      withheld (gitleaks metadata + `--redact` only); deterministic dedup.
-- [x] Dependency manifest analysis (`tools/source_audit/manifest.py`):
-      requirements.txt / package.json / go.mod summaries — no installs, no execution.
-- [x] CLI `mauberesec audit <path>` (+ `--inventory-only`): LOCAL_FILE mode assessment,
-      policy-checked tool calls, ToolRun + Finding persistence, audit events.
-- [x] Tool contracts: static.semgrep, static.gitleaks, static.osv_scanner registered.
+### v0.6 (this milestone)
+- [x] Host-side validation (`tools/apk/validate.py`): path/size cap (500 MB),
+      ZIP magic check, symlink rejection, SHA-256, quick central-directory probe.
+- [x] Pure-python AXML parser (`tools/apk/container/axml.py`): string pool
+      (UTF-8/UTF-16), start/end elements, typed attribute values
+      (string/int/bool/reference), CDATA — unit-tested against a hand-built
+      binary manifest.
+- [x] Container analyzer (`tools/apk/container/apk_analyzer.py`, stdlib-only
+      script mounted read-only into python:3.12-alpine, network none):
+      - AndroidManifest review: dangerous permissions, exported components
+        (unprotected → medium, provider unprotected → high, protected → low),
+        debuggable (high), usesCleartextTraffic (medium), allowBackup (low),
+        outdated targetSdk (< 24 → low).
+      - Network security config (res/xml/*): cleartextTrafficPermitted=true.
+      - Embedded secret indicators (DEX printable strings + assets/res-raw/
+        text files): AWS keys, Google/OpenAI keys, GitHub tokens, JWTs,
+        password assignments, private-key markers — **values never reported**.
+      - ZIP-bomb limits: entry count ≤ 20k, per-entry ≤ 200 MB, total ≤ 2 GB,
+        compression-ratio guard; violations abort with clean JSON errors.
+- [x] Host adapter (`tools/apk/analysis.py`): stages the APK into a controlled
+      input location (arch §9 step 3), runs the container, parses JSON into
+      FindingRecords with artifact evidence + confidence.
+- [x] CLI `mauberesec apk analyze <path>` (+ `--metadata-only`); assessment in
+      LOCAL_FILE mode with kind=APK; policy gateway now maps apk_static → APK
+      targets. APK is never installed or executed on the host.
+- [x] `DockerClient.run_scanner` supports extra validated read-only mounts.
 
 ## In progress
 - None.
 
 ## Automated tests
-- Total: 142 passed (+23 this milestone).
-- Unit: path canonicalization/symlink rejection/escape, inventory exclusions and
-  limits, manifest parsing, scanner JSON parsers, secret-withholding, dedup.
-- Integration (real Docker): scanner cannot write the read-only source mount,
-  scanner has no interfaces beyond loopback (network=none), adapter plumbing
-  produces parsed findings from a mounted fixture.
-- Security: relative host path rejected by run_scanner; general run still rejects
-  host mounts (incl. :ro); fixed-command guarantees; env not project-controlled;
-  gitleaks secrets absent from model records and persisted DB rows.
-- mypy strict (37 files) and ruff clean.
+- Total: 162 passed (+20 this milestone).
+- Unit: AXML parsing (attributes, typed values), manifest findings coverage,
+  secret-withholding assertions, zip-bomb ratio/entry/size rejections,
+  malformed ZIP fail-safe, missing manifest rejection, path validation.
+- Integration (real Docker): analyzer container end-to-end on a fixture APK
+  (findings + secrets absent from output), corrupt APK rejected inside the
+  container, fixed-command verification (python3 analyzer — APK is data only).
+- Security: CLI rejects non-APK/missing/symlink paths; secret values absent
+  from records and audit events; size-cap enforcement.
+- mypy strict (44 files) and ruff clean.
 
-## Manual tests (Linux, this host, real scanners)
-- `mauberesec audit <copy of this repo>` with planted issues:
-  - Semgrep found the planted SQL-string finding (2 findings, incl. the real
-    f-string PRAGMA in db.py).
-  - Gitleaks found 3 planted/test secret matches — values withheld from findings
-    and DB (verified: `AKIAIOSFODNN7EXAMPLE` absent from stored JSON).
-  - OSV-Scanner ran clean (no vulnerable manifests in fixture).
-- Inventory correctly excluded node_modules/.git/binaries/oversized files and
-  flagged .env as secret-hint.
+## Manual tests (Linux, this host)
+- `mauberesec apk analyze /tmp/msai-apk/vuln-app.apk` (crafted APK with
+  debuggable, cleartext, CAMERA, exported activity, targetSdk 21, planted
+  AWS/OpenAI/password secrets): 8 findings produced, secrets withheld from
+  output and database.
+- `--metadata-only` path returns SHA-256 without any container run.
 
 ## Known issues
-- Semgrep/OSV require outbound network for rule packs / advisory DB (bridge only;
-  documented per-adapter); fully offline operation needs vendored rule caches
-  (future enhancement).
-- OSV-Scanner reports against manifests it recognizes; lockfile-less projects get
-  partial coverage.
-- Scanner stdout size cap is the run budget's max_response_bytes equivalent at
-  64MB tmpfs; extremely noisy repos may truncate (tool_run records it).
+- Manifest attributes rely on typical aapt layouts (attrStart 0x14); exotic
+  packers may need a fuller AXML implementation (tests make the contract clear).
+- DEX analysis is string-level indicator scanning; full decompilation
+  (jadx/apkanalyzer) is reserved for later milestones per roadmap wording.
+- networkSecurityConfig is located by scanning res/xml/*.xml (resource-ID to
+  file mapping is not resolved).
 
 ## Next permitted work
-Only tasks in v0.6 — APK static analysis (after owner approval).
+Only tasks in v0.7 — Bounded agent planning and analysis (after owner approval).

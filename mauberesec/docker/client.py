@@ -137,6 +137,7 @@ class DockerClient:
         allow_network: bool = False,
         entrypoint: str | None = None,
         env: dict[str, str] | None = None,
+        extra_ro_mounts: list[tuple[str, str]] | None = None,
     ) -> DockerResult:
         """Run a scanner container over a read-only source mount.
 
@@ -159,6 +160,11 @@ class DockerClient:
         """
         if not os.path.isabs(host_path):
             raise DockerCommandError("Scanner host path must be absolute.")
+        mounts = [(host_path, container_path)]
+        for extra_host, extra_container in extra_ro_mounts or []:
+            if not os.path.isabs(extra_host) or not extra_container.startswith("/"):
+                raise DockerCommandError("Extra scanner mounts must be absolute.")
+            mounts.append((extra_host, extra_container))
         args = [
             "run",
             "--rm",
@@ -174,8 +180,7 @@ class DockerClient:
             "/tmp:size=64m,mode=1777",  # noqa: S108 - tmpfs spec
             *(["--entrypoint", entrypoint] if entrypoint else []),
             *(arg for key, value in (env or {}).items() for arg in ("-e", f"{key}={value}")),
-            "-v",
-            f"{host_path}:{container_path}:ro",
+            *(arg for h, c in mounts for arg in ("-v", f"{h}:{c}:ro")),
             image,
             *command,
         ]

@@ -54,6 +54,10 @@ mauberesec scan http://10.66.7.10/
 # Local source-code audit (read-only containerized scanners; no code execution)
 mauberesec audit ./my-project
 mauberesec audit ./my-project --inventory-only
+
+# APK static analysis (never installed or executed; runs in a restricted container)
+mauberesec apk analyze ./application.apk
+mauberesec apk analyze ./application.apk --metadata-only
 ```
 
 ## Docker

@@ -213,6 +213,8 @@ class PolicyGateway:
         kind = (
             TargetKind.WEBSITE
             if contract.category.value.startswith(("passive", "lab"))
+            else TargetKind.APK
+            if contract.category.value == "apk_static"
             else TargetKind.REPO
         )
         if not assessment.scope.contains(kind, target):
