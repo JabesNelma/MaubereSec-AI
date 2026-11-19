@@ -1,74 +1,73 @@
 # MaubereSec AI Progress
 
 ## Current milestone
-v0.7 — Bounded agent planning and analysis
+v0.8 — Controlled local-lab red-team validation
 
 ## Status
-Implemented and tested (incl. real end-to-end agent run with container scanners) — awaiting owner validation and approval of v0.8
+Implemented and tested (incl. real lab-internal probes against demo-web) — awaiting owner validation and approval of v0.9
 
 ## Completed
 
-### v0.1–v0.6 (approved & released)
-- CLI/cloud foundation, policy/database foundation, Docker lab manager,
-  passive live website assessment, source-code audit, APK static analysis.
+### v0.1–v0.7 (approved & released)
+- CLI/cloud foundation, policy/database foundation, Docker lab manager, passive
+  live website assessment, source-code audit, APK static analysis, bounded agent.
 
-### v0.7 (this milestone)
-- [x] Structured planner (`mauberesec/agent/planner.py`): deterministic plan
-      from the scope by default; optional cloud-model proposal (--use-ai) that
-      is schema-parsed, validated against registry/scope/budget, and falls
-      back to the deterministic plan with an AUDITED fallback event on any
-      invalid/over-budget output. Model token budget enforced.
-- [x] Plan schemas (`agent/schemas.py`): PlanStep/AssessmentPlan; the mode is
-      always copied from the scope — the model cannot choose it;
-      validate_plan rejects unknown tools, out-of-scope targets, mode
-      mismatches, and over-budget step counts.
-- [x] Bounded agent state machine (`agent/state.py`): explicit transitions
-      (created/running/completed/cancelled/budget_exhausted/failed),
-      step + runtime budgets, cancellation event.
-- [x] Bounded executor (`agent/executor.py`): every step policy-gateway
-      checked; only registered executors run (no shell anywhere);
-      tool runs, findings, denials, errors, and run finish are all audited;
-      partial results preserved on cancellation/budget exhaustion.
-- [x] Prompt-injection defenses (`agent/injection.py`): untrusted content is
-      hard-delimited for prompts; injection markers in plan fields or tool
-      output are detected and audited (never executed).
-- [x] Built-in executors (`agent/executors_builtin.py`) wiring v0.4-v0.6
-      capabilities (passive HTTP, source scanners, APK analyzer); lab tools
-      have no executor yet and fail safely.
-- [x] CLI: `mauberesec agent plan` / `mauberesec agent run` with the same
-      authorization rules as scan/audit (live requires auth flags).
+### v0.8 (this milestone)
+- [x] Lab test profiles (`mauberesec/labs/profiles.py`): `service_info`,
+      `security_headers`, `common_paths` (safe, read-only) and
+      `synthetic_login` (state-changing). Synthetic credentials are fixed
+      constants; no real, default, or vendor credential lists exist anywhere.
+- [x] Container probe (`labs/container/lab_probe.py`, stdlib-only, runs attached
+      to the lab network only): GET-based recon, security-header review, common
+      path exposure check, and a synthetic-credential POST probe that reports
+      whether authentication is enforced. No redirects are ever auto-followed;
+      every destination is validated against the lab subnet inside the
+      container; request and time budgets are enforced.
+- [x] Runner (`labs/runner.py`): refuses unregistered labs, verifies lab health
+      before and after, resolves the service target automatically from the lab
+      network (no guessing), gates state-changing checks behind explicit
+      per-run confirmation (denials audited), captures evidence, and supports
+      `--reset-after` to restore the lab baseline (roadmap reset requirement).
+- [x] Policy integration: new public `LabManager.service_containers`; tool
+      contracts `lab.recon` (read-only) and `lab.controlled_validation`
+      (state-changing, requires confirmation) already enforce mode/scope.
+- [x] CLI: `mauberesec lab test <name> [--base-url URL] [--confirm-state-change]
+      [--reset-after]`.
+- [x] Roadmap exclusions honored by construction: no malware, persistence,
+      stealth, evasion, log deletion, credential theft, DoS, or escape logic
+      exists in the lab tooling; tests target only registered disposable labs.
 
 ## In progress
 - None.
 
 ## Automated tests
-- Total: 185 passed (+23 this milestone).
-- Unit: plan validation matrix, deterministic plans, model-plan parsing
-  (fenced JSON), invalid model plan -> audited fallback, valid model plan
-  accepted with mode forced from scope, token budget exhaustion, state
-  machine transitions/step/runtime/cancellation.
-- Security: agent cannot run unregistered tools (denied + audited); cannot
-  escape scope; unknown executor fails safely; injection fixtures in tool
-  output are detected and audited but never executed; budget exhaustion
-  stops with exactly budget many calls; cancellation preserves partial
-  results.
-- mypy strict (52 files) and ruff clean.
+- Total: 199 passed (+14 this milestone).
+- Unit: profile defaults/gating, payload contains synthetic-only credentials,
+  state-changing checks excluded without confirmation, probe behaviour against a
+  local fixture HTTP server (service info, headers, exposed path, auth
+  enforcement reporting), out-of-lab destination blocked, request budget.
+- Integration (real Docker): `lab test` safe checks end-to-end against
+  demo-web over the lab network; state-change blocked without confirmation
+  (audited); `--reset-after` restores the baseline and the lab stays healthy;
+  unregistered lab refused.
+- mypy strict (57 files) and ruff clean.
 
 ## Manual tests (Linux, this host)
-- `mauberesec agent run <this repo> --goal "audit for secrets..."`:
-  deterministic 3-step plan executed end-to-end with the real container
-  scanners — semgrep 3 findings, gitleaks 3 findings, osv 0; status
-  completed; 9+ audit events persisted.
-- `mauberesec agent plan <repo>` prints the plan without executing.
-- `mauberesec agent run https://example.com` without auth flags -> blocked.
+- Registered demo-web, ran `lab test demo-web`: probe reached nginx inside the
+  lab network (auto-discovered 10.66.7.2), reported service info + 4 missing
+  security headers as findings.
+- Without `--confirm-state-change`: synthetic_login skipped and the denial
+  recorded in the audit trail.
+- With confirmation: synthetic_login ran (synthetic credentials only) and the
+  audit records "state-changing included: True".
+- `--reset-after`: lab reset to baseline, reported, and still healthy.
 
 ## Known issues
-- The planner makes a single completion per plan (no iterative replanning);
-  multi-turn planning is future scope.
-- lab.recon / lab.controlled_validation are registered tools without
-  executors — steps fail safely until v0.8 wires lab validation.
-- Injection-marker detection is heuristic (defense in depth); the primary
-  defense remains schema validation + the policy gateway.
+- The demo-web profile has no login endpoint, so synthetic_login reports
+  "absent" paths (correct behaviour); richer vulnerable-lab templates arrive
+  with future milestone work.
+- Evidence is stored as finding text + tool-run summaries (no raw response
+  bodies retained, by design).
 
 ## Next permitted work
-Only tasks in v0.8 — Controlled local-lab red-team validation (after owner approval).
+Only tasks in v0.9 — APK dynamic analysis in an isolated emulator (after owner approval).

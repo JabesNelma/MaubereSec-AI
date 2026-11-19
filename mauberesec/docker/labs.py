@@ -237,6 +237,11 @@ class LabManager:
         )
         return {"ok": ok, "network": network, "services": services}
 
+    def service_containers(self, lab_name: str) -> list[str]:
+        """Public: container names labeled for *lab_name*."""
+        containers, _network = self._find_lab_resources(lab_name)
+        return containers
+
     def container_state(self, name: str) -> dict[str, Any] | None:
         result = self._docker.run(["container", "inspect", name], timeout=15)
         if not result.ok:

@@ -115,3 +115,20 @@ Milestone: bounded agent planning and analysis.
   and marker detection on plan fields and tool output.
 - CLI `mauberesec agent plan|run` with the established authorization rules.
 - 23 new tests (185 total).
+
+## 0.8.0 (2026-11-19)
+
+Milestone: controlled local-lab red-team validation.
+
+- Lab test profiles with safe (read-only) and state-changing checks; synthetic
+  credentials only — no real/default credential lists anywhere.
+- Container probe attached to the lab network only: recon, security headers,
+  common-path exposure, and a synthetic-credential authentication probe.
+  No auto-followed redirects, per-request lab-subnet validation, request/time
+  budgets.
+- Runner: refuses unregistered labs, verifies health before/after, auto-resolves
+  the service target from the lab network, requires explicit per-run
+  confirmation for state-changing checks (denials audited), and restores the
+  lab baseline with --reset-after.
+- CLI `mauberesec lab test` with --confirm-state-change and --reset-after.
+- 14 new tests (199 total) including live lab-internal integration runs.

@@ -46,6 +46,11 @@ mauberesec lab verify demo-web     # network/health/hardening verification
 mauberesec lab reset demo-web      # teardown + fresh create
 mauberesec lab teardown demo-web   # remove only this lab's resources
 
+# Controlled red-team validation inside a registered disposable lab
+mauberesec lab test demo-web                        # safe (read-only) checks
+mauberesec lab test demo-web --confirm-state-change # allow the synthetic-login probe
+mauberesec lab test demo-web --reset-after          # restore the lab baseline afterwards
+
 # Passive scan: live targets require explicit authorization
 mauberesec scan https://example.com --auth-reference CONTRACT-1 --authorized-by owner
 # Registered lab targets need no authorization (classification is verified)

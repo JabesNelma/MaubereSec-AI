@@ -138,6 +138,7 @@ class DockerClient:
         entrypoint: str | None = None,
         env: dict[str, str] | None = None,
         extra_ro_mounts: list[tuple[str, str]] | None = None,
+        network_name: str | None = None,
     ) -> DockerResult:
         """Run a scanner container over a read-only source mount.
 
@@ -150,6 +151,9 @@ class DockerClient:
         default bridge network for scanners that must download rules or
         advisories (semgrep, OSV); they still cannot reach the local
         target, which is a mounted directory, and never the host network.
+        ``network_name`` attaches the container to exactly one named
+        Docker network (used for lab-internal probes); it takes
+        precedence over ``allow_network``.
 
         ``label=disable`` turns off SELinux confinement for this container
         only: on SELinux hosts (e.g. Fedora rootless Docker) container
@@ -165,10 +169,16 @@ class DockerClient:
             if not os.path.isabs(extra_host) or not extra_container.startswith("/"):
                 raise DockerCommandError("Extra scanner mounts must be absolute.")
             mounts.append((extra_host, extra_container))
+        if network_name is not None:
+            if not network_name.replace("-", "").replace("_", "").isalnum():
+                raise DockerCommandError("Invalid Docker network name.")
+            network_args: list[str] = ["--network", network_name]
+        else:
+            network_args = ["--network", "none"] if not allow_network else []
         args = [
             "run",
             "--rm",
-            *(["--network", "none"] if not allow_network else []),
+            *network_args,
             "--cap-drop",
             "ALL",
             "--security-opt",
