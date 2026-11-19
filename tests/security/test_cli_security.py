@@ -16,9 +16,11 @@ def test_help_works():
 
 
 def test_version_works():
+    from mauberesec import __version__
+
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert __version__ in result.output  # never hardcode: follows releases
 
 
 def test_config_show_never_prints_api_key(monkeypatch):

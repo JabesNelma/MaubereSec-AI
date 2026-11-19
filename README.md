@@ -2,7 +2,12 @@
 
 Terminal-first AI security assessment agent (Python + Docker, cloud AI only).
 
-**Status:** v0.1 — Python CLI and cloud model foundation. See [docs/ROADMAP.md](docs/ROADMAP.md) and [progres.md](progres.md).
+**Status:** **v1.0.0 — stable release.** See [progres.md](progres.md) for the PRD
+acceptance checklist and [docs/ROADMAP.md](docs/ROADMAP.md) for the plan.
+
+Documentation: [install](docs/INSTALL.md) · [CLI reference](docs/CLI.md) ·
+[threat model](docs/THREAT_MODEL.md) · [security review](docs/SECURITY_REVIEW.md) ·
+[support matrix](docs/SUPPORT_MATRIX.md) · [dependencies](docs/DEPENDENCIES.md)
 
 ## Requirements
 
@@ -105,8 +110,21 @@ mypy mauberesec
 pytest
 ```
 
-## Scope of v0.1
+## What is included at v1.0
 
-CLI foundation and one cloud provider only. No scanners, agent tool
-execution, website scanning, APK analysis, or MCP integration yet —
-these arrive in later roadmap milestones.
+- Authorized passive website assessment, local source-code audit, APK static
+  analysis, and experimental APK dynamic analysis in a disposable emulator.
+- Disposable local labs with controlled red-team validation behind explicit
+  per-run confirmation.
+- Bounded agent planning/execution and explicit-only MCP integrations.
+- Versioned findings with verification rules (LLM-only claims can never be
+  confirmed) and redacted Markdown/JSON reports.
+
+## Release gate
+
+```bash
+scripts/release_check.sh --with-containers
+```
+
+Runs lint, type checks, the full test suite, CLI smoke tests, the container
+build, a hardened container run, and compose syntax validation.

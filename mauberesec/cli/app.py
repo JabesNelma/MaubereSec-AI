@@ -45,6 +45,7 @@ from .mcp import mcp_app
 from .reports import (
     generate as generate_command,
     history as history_command,
+    list_assessments as list_command,
     report_app,
     show as show_command,
 )
@@ -58,6 +59,7 @@ app.command(name="history")(history_command)
 assessment_app = typer.Typer(help="Inspect and manage assessments.")
 app.add_typer(assessment_app, name="assessment")
 assessment_app.command(name="show")(show_command)
+assessment_app.command(name="list")(list_command)
 assessment_app.command(name="report")(generate_command)
 app.add_typer(apk_app, name="apk")
 app.add_typer(lab_app, name="lab")
@@ -90,7 +92,11 @@ def main(
 
 
 @app.command()
-def doctor() -> None:
+def doctor(
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable JSON.")
+    ] = False,
+) -> None:
     """Check the runtime environment and report platform limitations."""
     checks: list[tuple[str, bool, str]] = []
 
@@ -163,15 +169,31 @@ def doctor() -> None:
     except SettingsError as exc:
         checks.append(("cloud-config", False, str(exc)))
 
+    failed = any(not ok for _name, ok, _detail in checks)
+    if json_output:
+        import json as _json
+
+        typer.echo(
+            _json.dumps(
+                {
+                    "version": __version__,
+                    "platform": sys_platform(),
+                    "checks": [
+                        {"name": name, "ok": ok, "detail": detail} for name, ok, detail in checks
+                    ],
+                    "ok": not failed,
+                },
+                indent=2,
+            )
+        )
+        raise typer.Exit(code=1 if failed else 0)
+
     typer.echo(f"mauberesec {__version__} doctor")
-    failed = False
     for name, ok, detail in checks:
-        mark = "OK " if ok else "FAIL"
-        if not ok:
-            failed = True
-        typer.echo(f"  [{mark}] {name}: {detail}")
+        typer.echo(f"  [{'OK ' if ok else 'FAIL'}] {name}: {detail}")
     typer.echo(
-        "Note: scanner execution, agent tool calls, and lab management are not included in v0.1."
+        "Note: doctor reports capability, not permission — live targets still "
+        "require authorization and labs must be registered."
     )
     raise typer.Exit(code=1 if failed else 0)
 

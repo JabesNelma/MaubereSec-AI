@@ -181,3 +181,23 @@ Milestone: findings verification and reports.
   redaction, and a shipped JSON Schema (validated in tests).
 - CLI report generate|show|schema, history, assessment show.
 - 19 new tests (252 passed, 1 skipped).
+
+## 1.0.0 (2026-11-19)
+
+Stable release.
+
+- Full regression suite: 273 passed, 1 skipped (unit, security, integration
+  including real Docker runs for scanner isolation, lab lifecycle, lab
+  validation, emulator orchestration, and the MCP fixture server).
+- Threat model (`docs/THREAT_MODEL.md`), policy-boundary security review
+  (`docs/SECURITY_REVIEW.md`), dependency/container review
+  (`docs/DEPENDENCIES.md`), evidence-based platform matrix
+  (`docs/SUPPORT_MATRIX.md`), installation/upgrade guide (`docs/INSTALL.md`),
+  CLI reference with exit codes (`docs/CLI.md`).
+- CLI usability: `doctor --json`, `history --json`, `assessment list`,
+  friendlier empty states, consistent cancellation handling.
+- Reproducible release gate script (`scripts/release_check.sh`) covering lint,
+  types, tests, CLI smoke, container build, hardened container run, and compose
+  syntax validation.
+- Dockerfile hardened with pip retry/timeout settings for resilient builds.
+- Version bumped to 1.0.0; PRD acceptance checklist recorded in `progres.md`.

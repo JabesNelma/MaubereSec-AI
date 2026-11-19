@@ -52,6 +52,14 @@ def schema() -> None:
     typer.echo(json.dumps(report_schema(), indent=2))
 
 
+@report_app.command("list")
+def list_assessments(
+    limit: Annotated[int, typer.Option("--limit", min=1, max=200)] = 20,
+) -> None:
+    """Alias for 'mauberesec history'."""
+    history(limit=limit, json_output=False)
+
+
 @report_app.command("show")
 def show(
     assessment_id: Annotated[str, typer.Argument(help="Assessment ID.")],
@@ -80,12 +88,38 @@ def show(
 @report_app.command("history")
 def history(
     limit: Annotated[int, typer.Option("--limit", min=1, max=200)] = 20,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable JSON.")
+    ] = False,
 ) -> None:
     """List recent assessments (newest first)."""
     db = Database(database_path())
     assessments = sorted(db.list_assessments(), key=lambda a: a.created_at, reverse=True)[:limit]
+    if json_output:
+        import json as _json
+
+        typer.echo(
+            _json.dumps(
+                [
+                    {
+                        "id": a.id,
+                        "created_at": a.created_at.isoformat(),
+                        "mode": a.mode.value,
+                        "status": a.status,
+                        "findings": len(db.list_findings(a.id)),
+                        "targets": [f"{t.kind.value}:{t.value}" for t in a.scope.targets],
+                    }
+                    for a in assessments
+                ],
+                indent=2,
+            )
+        )
+        db.close()
+        return
     if not assessments:
-        typer.echo("No assessments recorded yet.")
+        typer.echo(
+            "No assessments recorded yet. Start with: mauberesec scan|audit|apk analyze|agent run"
+        )
     for assessment in assessments:
         counts = len(db.list_findings(assessment.id))
         typer.echo(
