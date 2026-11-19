@@ -64,6 +64,11 @@ mauberesec audit ./my-project --inventory-only
 mauberesec apk analyze ./application.apk
 mauberesec apk analyze ./application.apk --metadata-only
 
+# EXPERIMENTAL dynamic analysis in a disposable emulator (requires KVM;
+# refuses clearly when unsupported). Synthetic data only.
+mauberesec apk dynamic ./application.apk --dry-run
+mauberesec apk dynamic ./application.apk --package com.example.app
+
 # Bounded agent: plan only, or plan + execute (deterministic by default)
 mauberesec agent plan ./my-project --goal "find hardcoded secrets"
 mauberesec agent run ./my-project --goal "find hardcoded secrets" --max-steps 10

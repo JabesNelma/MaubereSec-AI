@@ -31,11 +31,16 @@ ALLOWED_PREFIXES: tuple[tuple[str, ...], ...] = (
     ("network", "ls"),
     ("network", "rm"),
     ("container", "inspect"),
+    ("image", "inspect"),
     ("container", "ls"),
     ("rm",),
     ("stop",),
     ("run",),
     ("pull",),
+    # "exec" runs a fixed argv inside a container we created (emulator
+    # orchestration). It never receives model input: only constants from
+    # mauberesec/android/emulator.py reach it.
+    ("exec",),
 )
 
 
@@ -122,9 +127,88 @@ class DockerClient:
         )
         return DockerResult(proc.returncode, proc.stdout, proc.stderr)
 
+    def image_exists(self, image: str) -> bool:
+        """True when *image* is already available locally."""
+        return self.run(["image", "inspect", image], timeout=20).ok
+
     def daemon_version(self) -> str | None:
         result = self.run(["version", "--format", "{{.Server.Version}}"], timeout=15)
         return result.stdout.strip() if result.ok else None
+
+    # -- emulator orchestration (v0.9): detached container + fixed exec -------
+
+    def run_emulator_container(
+        self,
+        image: str,
+        *,
+        name: str,
+        network: str,
+        read_only_mounts: list[tuple[str, str]],
+        env: dict[str, str] | None = None,
+        device_kvm: bool = True,
+        timeout: float = 300.0,
+    ) -> str:
+        """Start the disposable emulator container detached; returns its id.
+
+        This is the only path that may pass ``--device /dev/kvm`` (required by
+        the Android emulator for hardware virtualization) and the only path
+        that starts a long-lived container. Everything else keeps the strict
+        run_scanner hardening.
+        """
+        if not name.replace("-", "").replace("_", "").isalnum():
+            raise DockerCommandError("Invalid container name.")
+        if not network.replace("-", "").replace("_", "").isalnum():
+            raise DockerCommandError("Invalid network name.")
+        for host, container in read_only_mounts:
+            if not os.path.isabs(host) or not container.startswith("/"):
+                raise DockerCommandError("Emulator mounts must be absolute paths.")
+        args: list[str] = [
+            "run",
+            "-d",
+            "--name",
+            name,
+            "--network",
+            network,
+            "--security-opt",
+            "no-new-privileges",
+            "--security-opt",
+            "label=disable",
+            "--tmpfs",
+            "/tmp:size=256m,mode=1777",  # noqa: S108 - tmpfs spec
+            *(arg for key, value in (env or {}).items() for arg in ("-e", f"{key}={value}")),
+            *(arg for h, c in read_only_mounts for arg in ("-v", f"{h}:{c}:ro")),
+            "--label",
+            "mauberesec.managed=true",
+            "--label",
+            f"mauberesec.emulator={name.removeprefix('msai-emu-')}",
+        ]
+        if device_kvm:
+            if not os.path.exists("/dev/kvm"):
+                raise DockerCommandError(
+                    "Hardware virtualization device /dev/kvm is not available."
+                )
+            args += ["--device", "/dev/kvm"]
+        args.append(image)
+        result = self._run_validated(args, timeout, allow_ro_host_mounts=True)
+        if not result.ok:
+            raise DockerCommandError(f"emulator container failed to start: {result.stderr[:300]}")
+        return result.stdout.strip()
+
+    def exec_in(self, container: str, argv: list[str], timeout: float = 300.0) -> DockerResult:
+        """Run a fixed argv inside a container we created (no model input)."""
+        if not argv:
+            raise DockerCommandError("Empty exec argv.")
+        allowed_first = {"sh", "adb", "timeout", "python3", "sleep", "true"}
+        if argv[0] not in allowed_first:
+            raise DockerCommandError(f"exec of '{argv[0]}' is not permitted.")
+        if not container.replace("-", "").replace("_", "").isalnum():
+            raise DockerCommandError("Invalid container name.")
+        return self._run_validated(["exec", container, *argv], timeout, allow_ro_host_mounts=False)
+
+    def remove_container(self, container: str, timeout: float = 120.0) -> DockerResult:
+        if not container.replace("-", "").replace("_", "").isalnum():
+            raise DockerCommandError("Invalid container name.")
+        return self._run_validated(["rm", "-f", container], timeout, allow_ro_host_mounts=False)
 
     def run_scanner(
         self,

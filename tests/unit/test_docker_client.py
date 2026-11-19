@@ -14,8 +14,45 @@ def test_allowed_subcommands_pass_validation():
 
 
 def test_non_allowlisted_subcommand_rejected():
-    with pytest.raises(DockerCommandError, match="not in the allowlist"):
-        _validate_args(["exec", "c1", "sh", "-c", "id"])
+    for cmd in ("commit", "push", "inspect", "save", "load", "build"):
+        with pytest.raises(DockerCommandError, match="not in the allowlist"):
+            _validate_args([cmd, "c1"])
+
+
+def test_exec_requires_permitted_argv0():
+    client = DockerClient(docker_path="")
+    with pytest.raises(DockerCommandError, match="not permitted"):
+        client.exec_in("c1", ["curl", "http://x"])
+    with pytest.raises(DockerCommandError, match="not permitted"):
+        client.exec_in("c1", ["bash", "-c", "id"])
+
+
+def test_exec_rejects_bad_container_name():
+    client = DockerClient(docker_path="")
+    with pytest.raises(DockerCommandError, match="Invalid container name"):
+        client.exec_in("c1; rm -rf /", ["sh", "-c", "x"])
+
+
+def test_emulator_requires_kvm_device(monkeypatch):
+    client = DockerClient(docker_path="")
+    import mauberesec.docker.client as c
+
+    monkeypatch.setattr(c.os.path, "exists", lambda p: False)
+    with pytest.raises(DockerCommandError, match="virtualization device"):
+        client.run_emulator_container(
+            "android:1", name="msai-emu-x", network="net1", read_only_mounts=[]
+        )
+
+
+def test_emulator_rejects_relative_mounts():
+    client = DockerClient(docker_path="")
+    with pytest.raises(DockerCommandError, match="absolute"):
+        client.run_emulator_container(
+            "android:1",
+            name="msai-emu-x",
+            network="net1",
+            read_only_mounts=[("relative", "/data")],
+        )
 
 
 def test_privileged_rejected():

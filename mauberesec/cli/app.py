@@ -123,6 +123,20 @@ def doctor() -> None:
     )
 
     try:
+        from ..android.hostcheck import detect_host
+
+        capability = detect_host()
+        checks.append(
+            (
+                "android-emulator",
+                capability.emulator_supported,
+                capability.summary().replace("emulator: ", ""),
+            )
+        )
+    except Exception:
+        checks.append(("android-emulator", False, "detection failed"))
+
+    try:
         settings = load_settings()
         cloud = settings.is_configured
         detail = (

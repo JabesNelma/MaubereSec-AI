@@ -132,3 +132,20 @@ Milestone: controlled local-lab red-team validation.
   lab baseline with --reset-after.
 - CLI `mauberesec lab test` with --confirm-state-change and --reset-after.
 - 14 new tests (199 total) including live lab-internal integration runs.
+
+## 0.9.0 (2026-11-19)
+
+Milestone: APK dynamic analysis in an isolated emulator (experimental).
+
+- Host capability detection (KVM/CPU virtualization/docker) with an explicit
+  refusal path and a doctor line; isolation is never silently degraded.
+- Synthetic-only fixtures with a dataset marker and tests asserting no
+  realistic secret patterns exist.
+- Fixed container entry script performing boot wait, dataset push, install,
+  launch, and runtime capture; adb runs inside the container only.
+- Per-run internal Docker network, detached emulator container with
+  --device /dev/kvm, verified reset across runs, and full teardown.
+- Narrow Docker API additions (run_emulator_container, exec_in,
+  remove_container, image_exists) with allowlist updates.
+- CLI `mauberesec apk dynamic` (experimental, --dry-run supported).
+- 16 new tests (215 passed, 1 skipped) incl. stub-image orchestration tests.
