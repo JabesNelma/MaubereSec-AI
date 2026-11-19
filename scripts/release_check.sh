@@ -26,9 +26,9 @@ echo "== CLI smoke =="
 
 if [ "$WITH_CONTAINERS" = "--with-containers" ]; then
   echo "== container build + hardened run =="
-  docker build -f docker/Dockerfile -t mauberesec/cli:1.0.0 .
-  docker run --rm --read-only --cap-drop ALL --tmpfs /tmp mauberesec/cli:1.0.0 --version
-  docker run --rm mauberesec/cli:1.0.0 doctor || true
+  docker build -f docker/Dockerfile -t mauberesec/cli:1.0.1 .
+  docker run --rm --read-only --cap-drop ALL --tmpfs /tmp mauberesec/cli:1.0.1 --version
+  docker run --rm mauberesec/cli:1.0.1 doctor || true
   echo "== compose file syntax =="
   python3 -c "import yaml,sys; yaml.safe_load(open('docker/compose.yaml')); print('compose.yaml valid YAML')"
 fi

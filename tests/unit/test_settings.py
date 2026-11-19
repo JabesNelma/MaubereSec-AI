@@ -2,7 +2,7 @@
 
 import pytest
 
-from mauberesec.ai.manager import NotConfiguredError, build_provider
+from mauberesec.ai.manager import build_provider
 from mauberesec.ai.providers.openai_provider import OpenAIProvider
 from mauberesec.config.settings import (
     SettingsError,
@@ -34,15 +34,27 @@ def test_missing_key_fails_without_fallback():
         build_provider(settings)
 
 
-def test_missing_provider_fails():
+def test_key_only_defaults_provider_and_model():
     settings = load_settings(env={"OPENAI_API_KEY": "sk-test"})
-    with pytest.raises(NotConfiguredError, match="MSAI_PROVIDER"):
-        build_provider(settings)
+    assert settings.provider == "openai"
+    assert settings.model == "gpt-4o-mini"
+    assert settings.is_configured is True
+    provider = build_provider(settings)
+    assert isinstance(provider, OpenAIProvider)
 
 
-def test_missing_model_fails():
-    settings = load_settings(env={"MSAI_PROVIDER": "openai", "OPENAI_API_KEY": "sk-test"})
-    with pytest.raises(NotConfiguredError, match="MSAI_MODEL"):
+def test_key_only_honours_explicit_model():
+    settings = load_settings(env={"OPENAI_API_KEY": "sk-test", "MSAI_MODEL": "gpt-x"})
+    assert settings.provider == "openai"
+    assert settings.model == "gpt-x"
+
+
+def test_no_key_does_not_default_anything():
+    settings = load_settings(env={"MSAI_PROVIDER": "openai", "MSAI_MODEL": "gpt-x"})
+    assert settings.provider == "openai"
+    assert settings.model == "gpt-x"
+    assert settings.api_key is None
+    with pytest.raises(Exception, match="API key missing"):
         build_provider(settings)
 
 

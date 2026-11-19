@@ -18,9 +18,9 @@ runner = CliRunner()
 
 
 def test_version_is_1_0():
-    assert __version__ == "1.0.0"
+    assert __version__ == "1.0.1"
     result = runner.invoke(app, ["--version"])
-    assert "1.0.0" in result.output
+    assert "1.0.1" in result.output
 
 
 @pytest.mark.parametrize(
@@ -88,7 +88,7 @@ def test_release_check_script_is_executable_and_complete():
 def test_doctor_json_output_is_machine_readable():
     result = runner.invoke(app, ["doctor", "--json"])
     payload = json.loads(result.output)
-    assert payload["version"] == "1.0.0"
+    assert payload["version"] == "1.0.1"
     assert isinstance(payload["checks"], list)
     assert all({"name", "ok", "detail"} <= set(c) for c in payload["checks"])
 

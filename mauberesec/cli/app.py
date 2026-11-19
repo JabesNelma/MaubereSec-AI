@@ -6,6 +6,7 @@ No scanners, agent loops, or tool execution in this milestone.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 from typing import Annotated
@@ -17,6 +18,8 @@ from ..ai import manager
 from ..ai.base import ModelProvider, ProviderError
 from ..ai.disclosure import disclosure_text
 from ..config.settings import (
+    DEFAULT_MODEL,
+    DEFAULT_PROVIDER,
     ENV_MODEL,
     ENV_PROVIDER,
     CloudSettings,
@@ -210,13 +213,28 @@ def config_show() -> None:
         typer.echo(f"Configuration error: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 
-    typer.echo(f"provider: {settings.provider or '<unset>'}")
-    typer.echo(f"model:    {settings.model or '<unset>'}")
+    provider = settings.provider or "<unset>"
+    model = settings.model or "<unset>"
+    if (
+        settings.api_key
+        and settings.provider == DEFAULT_PROVIDER
+        and not _env_present(ENV_PROVIDER)
+    ):
+        provider = f"{provider} (default)"
+    if settings.api_key and settings.model == DEFAULT_MODEL and not _env_present(ENV_MODEL):
+        model = f"{model} (default)"
+    typer.echo(f"provider: {provider}")
+    typer.echo(f"model:    {model}")
     key_set = "set" if settings.api_key else "unset"
     key_env = provider_api_key_env(settings.provider or "openai")
     typer.echo(f"api key:  {key_set} ({key_env}; value never shown)")
     typer.echo(f"timeout:  {settings.timeout_seconds}s")
     typer.echo(f"config via env: {ENV_PROVIDER}, {ENV_MODEL}")
+    if settings.api_key and not (_env_present(ENV_PROVIDER) and _env_present(ENV_MODEL)):
+        typer.echo(
+            "note: defaults applied for unset provider/model; export "
+            f"{ENV_PROVIDER}/{ENV_MODEL} to override."
+        )
 
 
 # -- models -------------------------------------------------------------------
@@ -252,6 +270,10 @@ def models_test() -> None:
 
 
 # -- helpers ------------------------------------------------------------------
+
+
+def _env_present(name: str) -> bool:
+    return bool(os.environ.get(name, "").strip())
 
 
 def load_settings_or_exit() -> CloudSettings:

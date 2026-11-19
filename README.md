@@ -2,7 +2,7 @@
 
 Terminal-first AI security assessment agent (Python + Docker, cloud AI only).
 
-**Status:** **v1.0.0 — stable release.** See [progres.md](progres.md) for the PRD
+**Status:** **v1.0.1 — stable release.** See [progres.md](progres.md) for the PRD
 acceptance checklist and [docs/ROADMAP.md](docs/ROADMAP.md) for the plan.
 
 Documentation: [install](docs/INSTALL.md) · [CLI reference](docs/CLI.md) ·
@@ -15,25 +15,43 @@ Documentation: [install](docs/INSTALL.md) · [CLI reference](docs/CLI.md) ·
 - Docker (for container workflows; `doctor` reports availability)
 - One cloud provider account (v0.1: OpenAI)
 
-## Install (development)
+## Install (one command)
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e . --group dev
+curl -fsSL https://raw.githubusercontent.com/JabesNelma/MaubereSec-AI/v1.0.1/install.sh | sh
 ```
 
-## Configure
+The installer creates an isolated virtualenv in `~/.local/share/mauberesec`,
+links the `mauberesec` command into `~/.local/bin`, and never uses `sudo`.
+Re-running the same command upgrades in place. If `~/.local/bin` is not on
+your `PATH`, the installer prints the one-line fix.
+
+## Configure (one key)
 
 ```bash
-cp .env.example .env   # then fill values, or export directly:
-export MSAI_PROVIDER="openai"
-export MSAI_MODEL="<model-id from models list>"
 export OPENAI_API_KEY="<your key>"
+```
+
+That is all that is required. With only the key set, the CLI uses provider
+`openai` and model `gpt-4o-mini`. To choose another model:
+
+```bash
+export MSAI_MODEL="<model-id from: mauberesec models list>"
 ```
 
 API keys are read from the environment only. They never appear in logs,
 reports, or config output, and there is no silent fallback to another
-provider.
+provider. Without a key the CLI stays unconfigured and fails with a clear
+message.
+
+## Install from source (development)
+
+```bash
+git clone https://github.com/JabesNelma/MaubereSec-AI.git
+cd MaubereSec-AI
+python3 -m venv .venv
+.venv/bin/pip install -e . --group dev
+```
 
 ## Usage
 

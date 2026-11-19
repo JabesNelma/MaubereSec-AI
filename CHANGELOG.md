@@ -201,3 +201,19 @@ Stable release.
   syntax validation.
 - Dockerfile hardened with pip retry/timeout settings for resilient builds.
 - Version bumped to 1.0.0; PRD acceptance checklist recorded in `progres.md`.
+
+## 1.0.1 (2026-11-19)
+
+One-command install and key-only setup.
+
+- `install.sh`: `curl | sh` installer that creates an isolated virtualenv in
+  `~/.local/share/mauberesec`, links `mauberesec` into `~/.local/bin`, supports
+  in-place upgrades (`--version`, `--force`), and uninstalls without touching
+  assessment data.
+- Key-only configuration: exporting `OPENAI_API_KEY` is now sufficient. When
+  `MSAI_PROVIDER`/`MSAI_MODEL` are unset, the CLI defaults to the single
+  supported provider (`openai`) and `gpt-4o-mini`; explicit values still win.
+  Without a key the CLI remains unconfigured and fails loudly.
+- `config show` marks defaulted provider/model and prints the override hint.
+- README and installation guide document the curl install and key-only flow.
+- Version bumped to 1.0.1.
