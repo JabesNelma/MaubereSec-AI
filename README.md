@@ -50,6 +50,10 @@ mauberesec lab teardown demo-web   # remove only this lab's resources
 mauberesec scan https://example.com --auth-reference CONTRACT-1 --authorized-by owner
 # Registered lab targets need no authorization (classification is verified)
 mauberesec scan http://10.66.7.10/
+
+# Local source-code audit (read-only containerized scanners; no code execution)
+mauberesec audit ./my-project
+mauberesec audit ./my-project --inventory-only
 ```
 
 ## Docker

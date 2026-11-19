@@ -11,6 +11,7 @@ Security rules (TECHNICAL_ARCHITECTURE §6, SECURITY_POLICY §4):
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -53,7 +54,7 @@ class DockerResult:
         return self.returncode == 0
 
 
-def _validate_args(args: list[str]) -> None:
+def _validate_args(args: list[str], *, allow_ro_host_mounts: bool = False) -> None:
     if not args:
         raise DockerCommandError("Empty docker command.")
     joined = " ".join(args)
@@ -66,12 +67,19 @@ def _validate_args(args: list[str]) -> None:
             if arg == flag and args[i + 1] == "host":
                 raise DockerCommandError(f"Docker argument '{flag} host' is forbidden by policy.")
     # Host filesystem mounts into containers are forbidden; named Docker
-    # volumes are allowed.
+    # volumes are allowed. The only exception is pre-validated read-only
+    # scanner mounts ending in ":ro", and those are only ever constructed
+    # by DockerClient.run_scanner (allow_ro_host_mounts=True).
     prev = ""
     for arg in args:
         if prev in ("-v", "--volume", "--mount"):
             host_side = arg.split(":")[0]
-            if arg.startswith(("/", ".", "~")) or host_side.startswith("/"):
+            is_ro_scanner_mount = (
+                allow_ro_host_mounts and arg.endswith(":ro") and arg.count(":") >= 2
+            )
+            if (
+                arg.startswith(("/", ".", "~")) or host_side.startswith("/")
+            ) and not is_ro_scanner_mount:
                 raise DockerCommandError(f"Host path mount '{arg}' is forbidden by policy.")
         prev = arg
     for prefix in ALLOWED_PREFIXES:
@@ -93,9 +101,19 @@ class DockerClient:
         return bool(self._docker)
 
     def run(self, args: list[str], timeout: float | None = None) -> DockerResult:
+        return self._run_validated(args, timeout, allow_ro_host_mounts=False)
+
+    def _run_validated(
+        self,
+        args: list[str],
+        timeout: float | None,
+        *,
+        allow_ro_host_mounts: bool,
+    ) -> DockerResult:
         if not self.available or self._docker is None:
             raise DockerCommandError("docker CLI not found on PATH.")
-        _validate_args(args)
+        _validate_args(args, allow_ro_host_mounts=allow_ro_host_mounts)
+
         proc = subprocess.run(  # noqa: S603 - allowlisted args only
             [self._docker, *args],
             capture_output=True,
@@ -107,3 +125,58 @@ class DockerClient:
     def daemon_version(self) -> str | None:
         result = self.run(["version", "--format", "{{.Server.Version}}"], timeout=15)
         return result.stdout.strip() if result.ok else None
+
+    def run_scanner(
+        self,
+        image: str,
+        command: list[str],
+        *,
+        host_path: str,
+        container_path: str = "/src",
+        timeout: float = 600.0,
+        allow_network: bool = False,
+        entrypoint: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> DockerResult:
+        """Run a scanner container over a read-only source mount.
+
+        Hardening: --rm, network disabled, all capabilities dropped,
+        no-new-privileges, read-only rootfs, and the source mounted
+        strictly read-only. The command comes from fixed adapter code —
+        never from model output or repository content.
+
+        Network is disabled by default. ``allow_network=True`` grants the
+        default bridge network for scanners that must download rules or
+        advisories (semgrep, OSV); they still cannot reach the local
+        target, which is a mounted directory, and never the host network.
+
+        ``label=disable`` turns off SELinux confinement for this container
+        only: on SELinux hosts (e.g. Fedora rootless Docker) container
+        processes otherwise cannot read user-labeled files. The user's
+        files are never relabeled (no ``:z``); isolation remains enforced
+        by the read-only mount, dropped capabilities, no network, and the
+        read-only rootfs.
+        """
+        if not os.path.isabs(host_path):
+            raise DockerCommandError("Scanner host path must be absolute.")
+        args = [
+            "run",
+            "--rm",
+            *(["--network", "none"] if not allow_network else []),
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges",
+            "--security-opt",
+            "label=disable",
+            "--read-only",
+            "--tmpfs",
+            "/tmp:size=64m,mode=1777",  # noqa: S108 - tmpfs spec
+            *(["--entrypoint", entrypoint] if entrypoint else []),
+            *(arg for key, value in (env or {}).items() for arg in ("-e", f"{key}={value}")),
+            "-v",
+            f"{host_path}:{container_path}:ro",
+            image,
+            *command,
+        ]
+        return self._run_validated(args, timeout, allow_ro_host_mounts=True)

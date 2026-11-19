@@ -89,6 +89,24 @@ def default_registry() -> ToolRegistry:
     )
     registry.register(
         ToolContract(
+            name="static.gitleaks",
+            version="0.1",
+            category=ToolCategory.STATIC_ANALYSIS,
+            allowed_modes=frozenset({Mode.LOCAL_FILE, Mode.LOCAL_LAB}),
+            description="Gitleaks secret scan adapter (read-only container).",
+        )
+    )
+    registry.register(
+        ToolContract(
+            name="static.osv_scanner",
+            version="0.1",
+            category=ToolCategory.DEPENDENCY_ANALYSIS,
+            allowed_modes=frozenset({Mode.LOCAL_FILE, Mode.LOCAL_LAB}),
+            description="OSV-Scanner dependency advisory adapter (read-only container).",
+        )
+    )
+    registry.register(
+        ToolContract(
             name="apk.static_review",
             version="0.1",
             category=ToolCategory.APK_STATIC,

@@ -1,79 +1,71 @@
 # MaubereSec AI Progress
 
 ## Current milestone
-v0.4 — Passive live website assessment
+v0.5 — Local source-code audit
 
 ## Status
-Implemented and tested — awaiting owner validation and approval of v0.5
+Implemented and tested (incl. real scanner runs in containers) — awaiting owner validation and approval of v0.6
 
 ## Completed
 
-### v0.1 (approved)
-- CLI foundation, provider-neutral model interface, OpenAI adapter, secret redaction,
-  cloud disclosure, hardened Dockerfile/compose.
+### v0.1–v0.4 (approved & released)
+- CLI foundation + cloud model, policy/database foundation, Docker lab manager,
+  passive live website assessment.
 
-### v0.2 (approved)
-- XDG paths, SQLite + migrations, record schemas, tool contract + registry,
-  deterministic policy gateway (fail-closed classification, authorization, audit).
-
-### v0.3 (approved)
-- Allowlisted Docker CLI wrapper, hardened lab profiles (internal network, limits,
-  cap_drop ALL), lab lifecycle (create/verify/teardown/reset, label-scoped),
-  persisted lab registrations feeding the policy registry, CLI lab commands.
-
-### v0.4 (this milestone)
-- [x] URL normalization (`mauberesec/scope/urlcheck.py`): http/https only, no
-      credentials/query/fragment, scheme inference, port validation.
-- [x] DNS/IP destination validation for live targets: private, loopback,
-      link-local (incl. 169.254.169.254), multicast, reserved, unspecified, and
-      metadata hostnames (metadata.google.internal) all rejected — fail closed.
-- [x] Lab destination validation: every resolved address must be inside a
-      registered lab subnet.
-- [x] Passive HTTP checker (`mauberesec/tools/website/passive.py`):
-      - GET-only, no cookies/credentials sent, passive by construction.
-      - Manual redirect following with per-hop destination revalidation
-        (redirects cannot escape scope or reach forbidden ranges).
-      - Security header checks (HSTS, CSP, X-Content-Type-Options,
-        X-Frame-Options, Referrer-Policy) and cookie attribute checks
-        (Secure, HttpOnly, SameSite) → FindingRecords.
-      - Budgets: request count, rate interval, per-request timeout, response
-        size cap (streamed), redirect limit.
-- [x] Evidence normalization: Evidence summary (status, headers, cookies,
-      redirect chain, notes) persisted as redacted ToolRunRecord summary.
-- [x] CLI `mauberesec scan <url>`: live requires `--auth-reference` +
-      `--authorized-by` (AuthorizationRecord bound to scope hash, 24h validity);
-      registered-lab targets classify LOCAL_LAB without authorization; clean
-      errors for unreachable targets.
+### v0.5 (this milestone)
+- [x] Path safety (`mauberesec/scope/pathcheck.py`): canonicalization, symlinked
+      root rejection, per-entry symlink escape detection (escapes skipped + reported).
+- [x] File inventory (`tools/source_audit/inventory.py`): generated/binary/oversized
+      exclusions, secret-hint files tracked and excluded from any cloud context,
+      max_files/max_total_bytes/max_file_bytes limits.
+- [x] Container scanner execution (`DockerClient.run_scanner`): strictly read-only
+      source mount (validated; general `docker run` still rejects host mounts),
+      `--network none` default (opt-in bridge only for rule/advisory downloads),
+      cap_drop ALL, no-new-privileges, read-only rootfs, tmpfs, fixed entrypoint/env.
+      `label=disable` (container-only) needed on SELinux hosts; user files never relabeled.
+- [x] Adapters (`tools/source_audit/adapters.py`): Semgrep (semgrep/semgrep:1.86.0),
+      Gitleaks (zricethezav/gitleaks:v8.24.3), OSV-Scanner (ghcr.io/google/osv-scanner:v1.9.2);
+      fixed commands only; pre-pull to keep stdout clean; JSON parsers; secret values
+      withheld (gitleaks metadata + `--redact` only); deterministic dedup.
+- [x] Dependency manifest analysis (`tools/source_audit/manifest.py`):
+      requirements.txt / package.json / go.mod summaries — no installs, no execution.
+- [x] CLI `mauberesec audit <path>` (+ `--inventory-only`): LOCAL_FILE mode assessment,
+      policy-checked tool calls, ToolRun + Finding persistence, audit events.
+- [x] Tool contracts: static.semgrep, static.gitleaks, static.osv_scanner registered.
 
 ## In progress
 - None.
 
 ## Automated tests
-- Total: 119 passed.
-- Unit: URL normalization (schemes, credentials, query/fragment, ports),
-  destination rejection matrix (private/loopback/link-local/metadata/multicast/
-  reserved), lab subnet checks.
-- Integration (mocked HTTP): header/cookie findings, redirect following,
-  redirect-to-private blocked, relative redirects, redirect limit, request
-  budget, response size cap, validator on initial URL.
-- Security: live scan without/with partial authorization blocked; private and
-  metadata targets rejected; lab flag cannot bypass; GET-only request policy
-  (spy transport); audit trail persisted for blocked scans.
-- mypy strict & ruff clean (31 files).
+- Total: 142 passed (+23 this milestone).
+- Unit: path canonicalization/symlink rejection/escape, inventory exclusions and
+  limits, manifest parsing, scanner JSON parsers, secret-withholding, dedup.
+- Integration (real Docker): scanner cannot write the read-only source mount,
+  scanner has no interfaces beyond loopback (network=none), adapter plumbing
+  produces parsed findings from a mounted fixture.
+- Security: relative host path rejected by run_scanner; general run still rejects
+  host mounts (incl. :ro); fixed-command guarantees; env not project-controlled;
+  gitleaks secrets absent from model records and persisted DB rows.
+- mypy strict (37 files) and ruff clean.
 
-## Manual tests (Linux, this host)
-- Lab target scan: classified `local_lab`, no authorization needed; internal
-  network unreachable from host reported cleanly (checks must run from the lab
-  network).
-- Live scan against https://example.com with authorization flags: full flow OK —
-  headers fetched, 5 low-severity findings produced and persisted.
+## Manual tests (Linux, this host, real scanners)
+- `mauberesec audit <copy of this repo>` with planted issues:
+  - Semgrep found the planted SQL-string finding (2 findings, incl. the real
+    f-string PRAGMA in db.py).
+  - Gitleaks found 3 planted/test secret matches — values withheld from findings
+    and DB (verified: `AKIAIOSFODNN7EXAMPLE` absent from stored JSON).
+  - OSV-Scanner ran clean (no vulnerable manifests in fixture).
+- Inventory correctly excluded node_modules/.git/binaries/oversized files and
+  flagged .env as secret-hint.
 
 ## Known issues
-- TLS metadata is minimal (scheme recorded; certificate/protocol details
-  arrive with a later milestone or tool adapter).
-- Live passive checks run from the host; running scanners inside the lab
-  network (via lab-attached containers) arrives in later milestones.
-- Rate limiter is per-checker, not persisted across runs.
+- Semgrep/OSV require outbound network for rule packs / advisory DB (bridge only;
+  documented per-adapter); fully offline operation needs vendored rule caches
+  (future enhancement).
+- OSV-Scanner reports against manifests it recognizes; lockfile-less projects get
+  partial coverage.
+- Scanner stdout size cap is the run budget's max_response_bytes equivalent at
+  64MB tmpfs; extremely noisy repos may truncate (tool_run records it).
 
 ## Next permitted work
-Only tasks in v0.5 — Local source-code audit (after owner approval).
+Only tasks in v0.6 — APK static analysis (after owner approval).

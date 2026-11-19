@@ -64,3 +64,20 @@ Milestone: passive live website assessment.
   redirects).
 - CLI `mauberesec scan` with live authorization flags bound to the scope hash.
 - 34 new tests (unit/integration/security).
+
+## 0.5.0 (2026-11-19)
+
+Milestone: local source-code audit.
+
+- Path canonicalization with symlink/traversal protection; bounded file
+  inventory with generated/binary/oversized exclusions and secret-hint tracking.
+- Containerized scanners (Semgrep, Gitleaks, OSV-Scanner) over a strictly
+  read-only source mount: no network by default, cap_drop ALL,
+  no-new-privileges, read-only rootfs, fixed commands/entrypoints/env only.
+- Project code is never executed; dependencies are never installed.
+- Secret values withheld from findings, evidence, and the database
+  (gitleaks metadata + --redact only).
+- Dependency manifest summaries (requirements.txt / package.json / go.mod).
+- CLI `mauberesec audit` with --inventory-only; findings deduplicated and
+  persisted with tool-run and audit-event records.
+- 23 new tests (142 total) incl. live-Docker isolation tests.
