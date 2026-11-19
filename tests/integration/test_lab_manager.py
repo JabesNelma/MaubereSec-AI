@@ -34,11 +34,16 @@ def client():
     return c
 
 
+_SUBNET_COUNTER = {"n": 10}
+
+
 def unique_profile() -> LabProfile:
     suffix = uuid.uuid4().hex[:6]
+    _SUBNET_COUNTER["n"] += 1
+    octet = _SUBNET_COUNTER["n"]  # unique per test process: no subnet collisions
     return LabProfile(
         name=f"it-lab-{suffix}",
-        subnet_cidr=f"10.77.{suffix[:2] and int(suffix[:2], 16) % 200 + 10}.0/24",
+        subnet_cidr=f"10.77.{octet}.0/24",
         description="integration test lab",
         services=(
             LabService(

@@ -1,73 +1,74 @@
 # MaubereSec AI Progress
 
 ## Current milestone
-v0.6 — APK static analysis
+v0.7 — Bounded agent planning and analysis
 
 ## Status
-Implemented and tested (incl. real container analysis of a crafted APK) — awaiting owner validation and approval of v0.7
+Implemented and tested (incl. real end-to-end agent run with container scanners) — awaiting owner validation and approval of v0.8
 
 ## Completed
 
-### v0.1–v0.5 (approved & released)
+### v0.1–v0.6 (approved & released)
 - CLI/cloud foundation, policy/database foundation, Docker lab manager,
-  passive live website assessment, local source-code audit.
+  passive live website assessment, source-code audit, APK static analysis.
 
-### v0.6 (this milestone)
-- [x] Host-side validation (`tools/apk/validate.py`): path/size cap (500 MB),
-      ZIP magic check, symlink rejection, SHA-256, quick central-directory probe.
-- [x] Pure-python AXML parser (`tools/apk/container/axml.py`): string pool
-      (UTF-8/UTF-16), start/end elements, typed attribute values
-      (string/int/bool/reference), CDATA — unit-tested against a hand-built
-      binary manifest.
-- [x] Container analyzer (`tools/apk/container/apk_analyzer.py`, stdlib-only
-      script mounted read-only into python:3.12-alpine, network none):
-      - AndroidManifest review: dangerous permissions, exported components
-        (unprotected → medium, provider unprotected → high, protected → low),
-        debuggable (high), usesCleartextTraffic (medium), allowBackup (low),
-        outdated targetSdk (< 24 → low).
-      - Network security config (res/xml/*): cleartextTrafficPermitted=true.
-      - Embedded secret indicators (DEX printable strings + assets/res-raw/
-        text files): AWS keys, Google/OpenAI keys, GitHub tokens, JWTs,
-        password assignments, private-key markers — **values never reported**.
-      - ZIP-bomb limits: entry count ≤ 20k, per-entry ≤ 200 MB, total ≤ 2 GB,
-        compression-ratio guard; violations abort with clean JSON errors.
-- [x] Host adapter (`tools/apk/analysis.py`): stages the APK into a controlled
-      input location (arch §9 step 3), runs the container, parses JSON into
-      FindingRecords with artifact evidence + confidence.
-- [x] CLI `mauberesec apk analyze <path>` (+ `--metadata-only`); assessment in
-      LOCAL_FILE mode with kind=APK; policy gateway now maps apk_static → APK
-      targets. APK is never installed or executed on the host.
-- [x] `DockerClient.run_scanner` supports extra validated read-only mounts.
+### v0.7 (this milestone)
+- [x] Structured planner (`mauberesec/agent/planner.py`): deterministic plan
+      from the scope by default; optional cloud-model proposal (--use-ai) that
+      is schema-parsed, validated against registry/scope/budget, and falls
+      back to the deterministic plan with an AUDITED fallback event on any
+      invalid/over-budget output. Model token budget enforced.
+- [x] Plan schemas (`agent/schemas.py`): PlanStep/AssessmentPlan; the mode is
+      always copied from the scope — the model cannot choose it;
+      validate_plan rejects unknown tools, out-of-scope targets, mode
+      mismatches, and over-budget step counts.
+- [x] Bounded agent state machine (`agent/state.py`): explicit transitions
+      (created/running/completed/cancelled/budget_exhausted/failed),
+      step + runtime budgets, cancellation event.
+- [x] Bounded executor (`agent/executor.py`): every step policy-gateway
+      checked; only registered executors run (no shell anywhere);
+      tool runs, findings, denials, errors, and run finish are all audited;
+      partial results preserved on cancellation/budget exhaustion.
+- [x] Prompt-injection defenses (`agent/injection.py`): untrusted content is
+      hard-delimited for prompts; injection markers in plan fields or tool
+      output are detected and audited (never executed).
+- [x] Built-in executors (`agent/executors_builtin.py`) wiring v0.4-v0.6
+      capabilities (passive HTTP, source scanners, APK analyzer); lab tools
+      have no executor yet and fail safely.
+- [x] CLI: `mauberesec agent plan` / `mauberesec agent run` with the same
+      authorization rules as scan/audit (live requires auth flags).
 
 ## In progress
 - None.
 
 ## Automated tests
-- Total: 162 passed (+20 this milestone).
-- Unit: AXML parsing (attributes, typed values), manifest findings coverage,
-  secret-withholding assertions, zip-bomb ratio/entry/size rejections,
-  malformed ZIP fail-safe, missing manifest rejection, path validation.
-- Integration (real Docker): analyzer container end-to-end on a fixture APK
-  (findings + secrets absent from output), corrupt APK rejected inside the
-  container, fixed-command verification (python3 analyzer — APK is data only).
-- Security: CLI rejects non-APK/missing/symlink paths; secret values absent
-  from records and audit events; size-cap enforcement.
-- mypy strict (44 files) and ruff clean.
+- Total: 185 passed (+23 this milestone).
+- Unit: plan validation matrix, deterministic plans, model-plan parsing
+  (fenced JSON), invalid model plan -> audited fallback, valid model plan
+  accepted with mode forced from scope, token budget exhaustion, state
+  machine transitions/step/runtime/cancellation.
+- Security: agent cannot run unregistered tools (denied + audited); cannot
+  escape scope; unknown executor fails safely; injection fixtures in tool
+  output are detected and audited but never executed; budget exhaustion
+  stops with exactly budget many calls; cancellation preserves partial
+  results.
+- mypy strict (52 files) and ruff clean.
 
 ## Manual tests (Linux, this host)
-- `mauberesec apk analyze /tmp/msai-apk/vuln-app.apk` (crafted APK with
-  debuggable, cleartext, CAMERA, exported activity, targetSdk 21, planted
-  AWS/OpenAI/password secrets): 8 findings produced, secrets withheld from
-  output and database.
-- `--metadata-only` path returns SHA-256 without any container run.
+- `mauberesec agent run <this repo> --goal "audit for secrets..."`:
+  deterministic 3-step plan executed end-to-end with the real container
+  scanners — semgrep 3 findings, gitleaks 3 findings, osv 0; status
+  completed; 9+ audit events persisted.
+- `mauberesec agent plan <repo>` prints the plan without executing.
+- `mauberesec agent run https://example.com` without auth flags -> blocked.
 
 ## Known issues
-- Manifest attributes rely on typical aapt layouts (attrStart 0x14); exotic
-  packers may need a fuller AXML implementation (tests make the contract clear).
-- DEX analysis is string-level indicator scanning; full decompilation
-  (jadx/apkanalyzer) is reserved for later milestones per roadmap wording.
-- networkSecurityConfig is located by scanning res/xml/*.xml (resource-ID to
-  file mapping is not resolved).
+- The planner makes a single completion per plan (no iterative replanning);
+  multi-turn planning is future scope.
+- lab.recon / lab.controlled_validation are registered tools without
+  executors — steps fail safely until v0.8 wires lab validation.
+- Injection-marker detection is heuristic (defense in depth); the primary
+  defense remains schema validation + the policy gateway.
 
 ## Next permitted work
-Only tasks in v0.7 — Bounded agent planning and analysis (after owner approval).
+Only tasks in v0.8 — Controlled local-lab red-team validation (after owner approval).

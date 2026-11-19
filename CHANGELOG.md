@@ -97,3 +97,21 @@ Milestone: APK static analysis.
 - CLI `mauberesec apk analyze` (+ --metadata-only); policy gateway supports
   APK targets; run_scanner supports extra validated read-only mounts.
 - 20 new tests (162 total) incl. live-Docker analyzer tests.
+
+## 0.7.0 (2026-11-19)
+
+Milestone: bounded agent planning and analysis.
+
+- Structured planner: deterministic scope-driven plans by default; optional
+  cloud-model proposals that are schema-validated against the registry,
+  scope, and budgets, with audited fallback and a model token budget.
+- Plan schemas: mode is always inherited from the scope; steps are checked
+  for registry membership, mode allowance, and scope containment.
+- Bounded agent state machine and executor: policy-gateway check on every
+  step, registered executors only (no shell anywhere), step/runtime budgets,
+  cancellation with partial-result preservation, and full audit coverage
+  (outcomes, denials, errors, injection markers, run finish).
+- Prompt-injection defenses: hard-delimited untrusted framing for prompts
+  and marker detection on plan fields and tool output.
+- CLI `mauberesec agent plan|run` with the established authorization rules.
+- 23 new tests (185 total).

@@ -58,6 +58,11 @@ mauberesec audit ./my-project --inventory-only
 # APK static analysis (never installed or executed; runs in a restricted container)
 mauberesec apk analyze ./application.apk
 mauberesec apk analyze ./application.apk --metadata-only
+
+# Bounded agent: plan only, or plan + execute (deterministic by default)
+mauberesec agent plan ./my-project --goal "find hardcoded secrets"
+mauberesec agent run ./my-project --goal "find hardcoded secrets" --max-steps 10
+mauberesec agent run https://example.com --use-ai --auth-reference C-1 --authorized-by owner
 ```
 
 ## Docker
